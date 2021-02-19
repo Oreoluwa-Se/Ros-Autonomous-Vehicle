@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-    <!-- Launch the gps subscriber node-->
-    <node name="gps_node_sub" pkg="gps_sub_node" type="gps_node.py" output="screen"/>
-    <!-- Launch the action server-->
-    <node name="move_waypoints_server_node" pkg="gps_sub_node" type="move_to_waypoint_server.py" output="screen"/>
-    <!-- Launch the action client-->
-    <node name="move_waypoint_client_node" pkg="gps_sub_node" type="move_to_waypoint_client.py" output="screen"/>
-</launch>
