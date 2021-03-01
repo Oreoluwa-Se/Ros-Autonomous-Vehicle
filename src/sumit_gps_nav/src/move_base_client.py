@@ -2,43 +2,14 @@
 
 # import necessary packages
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseFeedback, MoveBaseResult
-from tf.transformations import euler_from_quaternion, quartenion_from_euler
-from geometry_msgs.msg import Pose
+import tf.transformations import euler_from_quaternion, quartenion_from_euler
 from helpers.gps_node_init import GpsNode
 import actionlib
 import rospy
 import time
-import tf
 
-
-"""
-/move_base/goal
-### PYTHON MESSAGE
-
-rosmsg show move_base_msgs/MoveBaseGoal                                                          
-geometry_msgs/PoseStamped target_pose                                                                                          
-  std_msgs/Header header                                                                                                       
-    uint32 seq                                                                                                                 
-    time stamp                                                                                                                 
-    string frame_id                                                                                                            
-  geometry_msgs/Pose pose                                                                                                      
-    geometry_msgs/Point position                                                                                               
-      float64 x                                                                                                                
-      float64 y                                                                                                                
-      float64 z                                                                                                                
-    geometry_msgs/Quaternion orientation                                                                                       
-      float64 x                                                                                                                
-      float64 y                                                                                                                
-      float64 z                                                                                                                
-      float64 w                                                                                                                
-               
-/move_base/cancel                                                                                                                                                         
-/move_base/cmd_vel                                                                                                                                                        
-/move_base/current_goal                                                                                                                                                   
-/move_base/feedback
-"""
 class MoveBaseClient:
-  def __init__(self, target):
+  def __init__(self):
     # initialize node
     rospy.init_node("move_waypoint_node")
 
@@ -51,11 +22,8 @@ class MoveBaseClient:
     # connect to the server
     self.server_conect("/move_base")
 
-    # send goal
-    self.goal_send(target) 
-
   # connect to movebase server target[[lat, lon]]
-  def server_connect(self, topic):
+  def server_connect(self, topic, target=[[39.50920331, -0.4659816],[39.5080331, -0.4619816]]):
           
     # create server, wait, print message
     self.client = actionlib.SimpleActionClient(topic, MoveBaseAction)
@@ -63,10 +31,6 @@ class MoveBaseClient:
     self.client.wait_for_server()
     rospy.loginfo("{} service found".format(topic))
 
-       
-
-  # send goal function
-  def goal_send(self, target):
     # create goal
     goal = MoveBaseGoal()
 
@@ -74,10 +38,16 @@ class MoveBaseClient:
       # create destination waypoint
       self.gps_node.dest_init(target[i][0], target[i][1], alt=0)
 
-      # stat sheet -> target pose 
-      goal.target_pose.frame_id = "map"
-      goal.target_pose.stamp    = rospy.get_rostime()
-      goal.target_pose.pose     =  self.gps_node.getPose_from_lat_long()
+      # get x, y, delta_x, delta_y
+      x, y, delta_x,  delta_y = self.gps_node.get_xy_from_lat_long()
+
+      # stat sheet -> target pose location to general odometry frame
+      goal.target_pose.frame_id = "odom"
+      goal.target_pose.stamp    = rospy.get_time()
+
+      # x and y locations
+      goal.target_pose.pose.position.x = x
+      goal.target_pose.pose.position.y = y
       
       # before getting to final position we calculate the rotation between points
       if target[i] != target[-1]:
@@ -90,11 +60,16 @@ class MoveBaseClient:
       # send goal and initiate feedback loop
       self.client.send_goal(goal, feedback_cb=self.feedback)
 
+  def point_manip(self, point):
+    # 
+
+
+
         
   # feedback and tells distance to current goal
   def feedback(self, feedback):
     # rospy rate
-    rate = rospy.Rate(1)
+    rate = rospy.Rate(10)
        
     # distance to location
     self.gps_node.waypoint_distance()
@@ -125,10 +100,7 @@ class MoveBaseClient:
 
 
 if __name__ == "__main__":
-  # target includes list of planned way points can make a function to extract this
-  target=[[39.50920331, -0.4659816],[39.5080331, -0.4619816]]
-  mb = MoveBaseClient(target)
-
+    mb = MoveBaseClient()
     
 
 

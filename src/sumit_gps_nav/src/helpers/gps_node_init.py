@@ -5,8 +5,6 @@ import rospy
 from sensor_msgs.msg import NavSatFix
 import geonav_transform.geonav_conversions as gc
 from geopy.distance import vincenty
-from geometry_msgs.msg import Pose, Quaternion
-from tf.transformations import quartenion_from_euler
 
 """
 used parameters from NavSatFix
@@ -54,32 +52,10 @@ class GpsNode:
   def gps_callback(self, msg):
     self.current_wp.lat, self.current_wp.lon, self.current_wp.alt = self.noise_rem(msg.latitude, msg.longitude, msg.altitude)
     
-
-  # returns pose
-  def getPose_from_lat_long(self):
-    delta_x, delta_y = gc.ll2xy(self.dest_wp.lat, self.dest_wp.lon, self.current_wp.lat, self.current_wp.lon)
-
-    # calculate angle
-    theta = atan2(delta_y, delta_x)
-
-    # calculate quaternion 
-    quart = quartenion_from_euler(0, 0, theta)
-
-    # fill the pose
-    pose = Pose()
-    pose.position.x = delta_x
-    pose.position.y = delta_y
-    pose.position.z = 0
-    
-    q = Quaternion()
-    q.x = quart[0]
-    q.y = quart[1]
-    q.z = quart[2]
-    q.w = quart[3]
-
-    pose.orientation = q
-
-    return pose
+  # extracts x, y location - between current way point and origin
+  def get_xy_from_lat_long(self):
+    xg2, yg2 = gc.ll2xy(self.current_wp.lat, self.current_wp.lon,self.dest_wp.lat,self.dest_wp.lon)
+    return xg2, yg2
 
    # remove noise from gps data
   def noise_rem(self, lat, lon, alt):
@@ -91,7 +67,7 @@ class GpsNode:
     lat, lon, alt = self.noise_rem(lat, lon, alt)
     self.dest_wp = WayPoints(lat, lon, alt)
 
-  def waypoint_distance(self, unit="m"):
+  def waypoint_distance(self, units="m"):
     origin = (self.current_wp.lon, self.current_wp.lat)
     target = (self.destination_wp.longitude, self.destination_wp.latitude)
 
@@ -111,3 +87,25 @@ class GpsNode:
     # print
     rospy.loginfo("{} [{}] to destination".format(distance, unit)) 
     return distance
+
+  # function for publishing origin to navsatfix
+  def navsatfix_pub(self, loc, wp):
+    to_pub = NavSatFix()
+
+    # messages to be published
+    to_pub.header.frame_id   = rospy.get_param("~frame_id", "map")
+    to_pub.header.stamp.secs = rospy.get_time()
+    to_pub.latitude          = wp.lat
+    to_pub.longitude         = wp.lon
+    to_pub.altitude          = wp.alt
+
+    # publish
+    while not self.ctrl_c:
+      connect = self.nav_sat_pub.get_num_connections()
+      # ensure we are connected
+      if connect > 0:
+        self.nav_sat_pub.publish(to_pub)
+        rospy.loginfo("{} waypoints sent to /gps/fix topic".format(loc))
+        break
+      else:
+        self.rate.sleep()

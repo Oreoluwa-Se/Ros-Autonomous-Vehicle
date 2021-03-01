@@ -19,6 +19,6 @@
     <remap from="/gps/fix" to="/gps/fix" />
     <remap from="/odometry/filtered" to="/robotnik_base_control/odom" />
 
-  </node>
+  </node> 
 
 </launch>

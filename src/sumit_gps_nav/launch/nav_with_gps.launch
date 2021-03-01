@@ -13,4 +13,7 @@
     <!--- Run Move Base -->
     <include file="$(find sumit_gps_nav)/launch/move_base_launch/move_base_start.launch" />
 
+    <!-- Run Rviz -->
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find sumit_gps_nav)/rviz/navigation_rviz.rviz" />
+
 </launch>
